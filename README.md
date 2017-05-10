@@ -46,24 +46,24 @@ Optional arguments:
 How I created my tables
 
 ```
-CREATE TABLE `all_wordlists` (
+ CREATE TABLE `dict`.`all_wordlists` (
    `id` int(11) NOT NULL AUTO_INCREMENT,
    `wordlist_id` int(11) NOT NULL,
    `word_id` int(11) NOT NULL,
    PRIMARY KEY (`id`,`wordlist_id`,`word_id`)
- ) ENGINE=InnoDB AUTO_INCREMENT=1551 DEFAULT CHARSET=utf8
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16
  
- CREATE TABLE `wordlists` (
+  CREATE TABLE `dict`.`wordlists` (
    `id` int(11) NOT NULL AUTO_INCREMENT,
    `wordlist_name` varchar(45) NOT NULL,
    PRIMARY KEY (`id`),
    UNIQUE KEY `wordlist_name_UNIQUE` (`wordlist_name`)
- ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16
  
- CREATE TABLE `gigantor` (
+ CREATE TABLE `dict`.`gigantor` (
    `id` int(11) NOT NULL AUTO_INCREMENT,
    `word` varchar(65) NOT NULL,
-   PRIMARY KEY (`id`,`wordlist_id`),
+   PRIMARY KEY (`id`),
    UNIQUE KEY `word` (`word`)
- ) ENGINE=InnoDB AUTO_INCREMENT=2097 DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16
 ```
