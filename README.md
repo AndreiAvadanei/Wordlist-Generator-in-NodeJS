@@ -39,7 +39,6 @@ Optional arguments:
                         lowercase letters
   -n MIN, --min MIN     Minimum word length to generate
   -m MAX, --max MAX     Maximum wor d length to generate
-  --baz BAZ             baz bar
 ```
 
 ### Tables
