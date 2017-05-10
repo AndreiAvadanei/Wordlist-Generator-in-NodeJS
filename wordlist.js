@@ -1,5 +1,4 @@
 /*
-  TODO: Remove hardcoded value to the refrence table
   USAGE: node ./wordlist.js --type 3 --min 8 --max 8 --username root --password <PASSWORD> --hostname <HOSTNAME> --table <TABLE> --database <DATABASE>
 */
 
