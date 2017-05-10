@@ -1,8 +1,15 @@
-var fs   = require('fs'),
-	argv   = require('optimist').argv,
-    _    = require('underscore'),
-    file = 'wordlist.txt',
-    stream = fs.createWriteStream(file, {flags: 'w'});
+/*
+  USAGE: node ./wordlist.js --type 3 --min 8 --max 8 --username root --password <PASSWORD> --hostname <HOSTNAME> --table <TABLE> --database <DATABASE>
+*/
+
+var  _    = require('underscore');
+const clear = require('clear-screen')
+var chalk = require('chalk');
+var mysql=require('mysql');
+var Spinner = require('cli-spinner').Spinner;
+Spinner.setDefaultSpinnerDelay(500);
+var spinner = new Spinner('processing.. %s');
+var ArgumentParser = require('argparse').ArgumentParser;
 
 // Numbers = 48 - 57
 // Capital = 65 - 90
@@ -13,39 +20,249 @@ var charsBuffer  = [],
 	alfalow      = _.range(97,123),
 	alfacap      = _.range(65,91);
 
-switch(argv.type){
-	case 1:  charsBuffer = numbers; break;
-	case 2:  charsBuffer = alfacap; break;
-	case 3:  charsBuffer = alfalow; break;
-	case 4:  charsBuffer = _.union(numbers,alfacap); break;
-	case 5:  charsBuffer = _.union(numbers,alfalow); break;
-	case 6:  charsBuffer = _.union(numbers,alfalow,alfacap); break;
-	case 7:  charsBuffer = _.union(alfalow,alfacap); break;
-	default:
-		console.log(""+
-			"Invalid options, please chose a type number between 1 to 7. \nEx: node wordlist.js --type 1 --min 1 --max 10\n"+
-			"1) Numbers\n"+
-    		"2) Capital Letters\n"+
-    		"3) Lowercase Letters\n"+
-    		"4) Numbers + Capital Letters\n"+
-    		"5) Numbers + Lowercase Letters\n"+
-    		"6) Numbers + Capital Letters + Lowercase Letters\n"+
-    		"7) Capital Letters + Lowercase Letters\n");
-	process.exit(0);
-}
-var string = _.map(charsBuffer,function(dec) {
-	return String.fromCharCode(dec);
-}).join('');
+var parser = new ArgumentParser({
+  version: '0.0.1',
+  addHelp:true,
+  description: 'Argparse example'
+});
 
-if(!_.isNumber(argv.min) || !_.isNumber(argv.max) || argv.min <= 0 || argv.min > argv.max) {
-	console.log("Invalid options, please chose valid values for min and max params. \nEx: node wordlist.js --type 1 --min 1 --max 10 ");
-	process.exit(0);
+var db = {
+    username: null,
+    password: null,
+    hostname: null,
+    database: null,
+	table:    null
+};
+
+var minLen;
+var maxLen;
+
+var connectionPool;
+
+var createConnectionPool = function() {
+	clear();
+    return new Promise(function(fulfill, reject) {
+        try {
+            fulfill(mysql.createPool({
+                connectionLimit : 100,
+                host     : db.hostname,
+                user     : db.username,
+                password : db.password,
+                database : db.database,
+                debug    :  false
+            }));
+        }catch(err){
+            reject(err);
+        }
+    });
+};
+
+var crud = {
+    insertWord: function(word){
+		    return new Promise(function(fulfill, reject) {
+        try {
+			connectionPool.query("insert ignore into "+db.database+"."+db.table+" VALUES (null,\""+word+"\")",function(err,result,fields){
+                if(err)
+                    reject(err);
+                else
+                    fulfill(result.insertId);
+            });
+        }catch(err){
+            reject(err);
+        }
+    });
+    },
+	checkIfWordlistExists: function(wordlistName) {
+		return new Promise(function(fulfill, reject) {
+			try {
+				connectionPool.query("SELECT EXISTS(SELECT * FROM wordlists WHERE wordlists.wordlist_name = \""+wordlistName+"\")",function(err,result,fields){
+					var t = '' + JSON.stringify(result);
+			
+					if(err)
+						reject(err)
+					else
+						fulfill(t[t.length-3]);
+				});
+			}catch(err){
+				reject(err);
+			}
+		});
+	},
+	createNewWordlist: function(wordlistName) {
+				return new Promise(function(fulfill, reject) {
+			try {
+				connectionPool.query("INSERT INTO wordlists (`wordlist_name`) VALUES ('"+wordlistName+"')",function(err,result,fields){			
+					if(err)
+						reject(err)
+					else
+						fulfill(result.insertId);
+				});
+			}catch(err){
+				reject(err);
+			}
+		});
+	},
+	getListId: function(wordlistName) {
+			return new Promise(function(fulfill, reject) {
+			try {
+				connectionPool.query("SELECT id from wordlists where wordlist_name = '"+wordlistName+"'",function(err,result,fields){			
+					if(err)
+						reject(err)
+					else
+						fulfill(result[0].id);
+				});
+			}catch(err){
+				reject(err);
+			}
+		});
+	},
+	createAssoc: function(listId, wordId) {
+			return new Promise(function(fulfill, reject) {
+			try {
+				connectionPool.query("INSERT INTO `all_wordlists` (`wordlist_id`, `word_id`) VALUES ('"+listId+"', '"+wordId+"');",function(err,result,fields){			
+					if(err)
+						reject(err)
+					else
+						fulfill('Success');
+				});
+			}catch(err){
+				reject(err);
+			}
+		});
+	}
+};
+
+parser.addArgument(
+  [ '-u', '--username' ],
+  {
+    help: 'MySQL Username'
+  }
+);
+
+parser.addArgument(
+  [ '-p', '--password' ],
+  {
+    help: 'MySQL Password'
+  }
+);
+
+parser.addArgument(
+  [ '-d', '--hostname' ],
+  {
+    help: 'MySQL Hostname'
+  }
+);
+
+parser.addArgument(
+  [ '-b', '--database' ],
+  {
+    help: 'Database name to use'
+  }
+);
+
+parser.addArgument(
+  [ '-e', '--table' ],
+  {
+    help: 'Database table to use for dictornary'
+  }
+);
+
+parser.addArgument(
+  [ '-w', '--wordlist_name' ],
+  {
+    help: 'What you\'d like to name your wordlist'
+  }
+);
+
+parser.addArgument(
+  [ '-t', '--type' ],
+  {
+    help: 'Charset to use.  1 - Numbers, 2 - Capital letters, 3 - Lowercase letters, 4 - Numbers + capital letters, 5 - Numbers + lowercase letters, 6 - Numbers + capital letters + lowercase letters, 7 - Capital letters + lowercase letters'
+  }
+);
+
+parser.addArgument(
+  [ '-n', '--min' ],
+  {
+    help: 'Minimum word length to generate'
+  }
+);
+
+parser.addArgument(
+  [ '-m', '--max' ],
+  {
+    help: 'Maximum wor d length to generate'
+  }
+);
+
+try {
+	var args = parser.parseArgs();
+	
+	db.username = args.username;
+	db.password = args.password;
+	db.hostname = args.hostname;
+	db.database = args.database;
+	db.table    = args.table;
+	
+	switch(args.type){
+		case '1':  charsBuffer = numbers; break;
+		case '2':  charsBuffer = alfacap; break;
+		case '3':  charsBuffer = alfalow; console.log(charsBuffer);break;
+		case '4':  charsBuffer = _.union(numbers,alfacap); break;
+		case '5':  charsBuffer = _.union(numbers,alfalow); break;
+		case '6':  charsBuffer = _.union(numbers,alfalow,alfacap); break;
+		case '7':  charsBuffer = _.union(alfalow,alfacap); break;
+	}
+	var string = _.map(charsBuffer,function(dec) {
+		return String.fromCharCode(dec);
+	}).join('');
+
+	minLen = args.min;
+	maxLen = args.max;
+	
+	createConnectionPool().then(function(pool) {
+		console.log('Connection pool created');
+		connectionPool = pool;
+
+		crud.checkIfWordlistExists(args.wordlist_name).then(function(listExists) {
+			if(listExists === '0') {
+				console.log("Creating");
+				crud.createNewWordlist(args.wordlist_name).then(function(wordlistId) {
+					spinner.setSpinnerString('|/-\\');
+					spinner.setSpinnerTitle('Generating....');
+					spinner.start();
+					console.log('Starting conneciton pool');
+					write(wordlistId);
+				},function(err) {
+					console.log(chalk.red(err));
+				});
+			}else{
+				console.log("Running");
+				crud.getListId(args.wordlist_name).then(function(wordlistId) {
+					spinner.setSpinnerString('|/-\\');
+					spinner.setSpinnerTitle('Generating....');
+					spinner.start();
+					console.log('Starting conneciton pool');
+					write(wordlistId);
+				},function(err) {
+					console.log(chalk.red(err));
+				});				
+			}
+		},function(err){
+			console.log(chalk.red(err));
+		});
+	},function(err) {
+		console.log('Error:' + err);
+	});	
+	}catch(ex){
+		console.log(ex);
 }
+var args = parser.parseArgs();
 
 /* permutations info */
 var permutation = [],
-	MIN  = argv.min,
-	MAX  = argv.max+1,
+	MIN  = minLen,
+	MAX  = maxLen+1,
 	last = _.last(string),
 	len  = 0;
 
@@ -110,29 +327,24 @@ function microtime (get_as_float) {
 
 var now = microtime(true);
 var count = 0;
-function write() {
-	nextPermutation(function(perm) { 
-    count++;
-    console.log(perm.join(''));
-		if(typeof(perm) != 'object') { console.log('Time : ' + (microtime(true) - now) + ' / Total : ' + count); process.exit(0); }
-		stream.write(perm.join('') + "\n", function() {
-			write();
+var id = 1;
+function write(listid) {
+	nextPermutation(function(perm) {
+		count++;
+		//console.log(perm.join(''));
+		
+		spinner.setSpinnerTitle('Everything is OK, generating words, this make take a while....');
+		crud.insertWord(perm.join('')).then(function(newWordId) {
+			crud.createAssoc(listid, newWordId).then(function(result) {
+				write(listid);
+			},function(err){
+				console.log(chalk.red(err));
+			});
+		},function(err){
+			console.log(chalk.red(err));
 		});
-
-    else
-      setImmediate(write);
+		if(typeof(perm) != 'object') {
+			//console.log('Time : ' + (microtime(true) - now) + ' / Total : ' + count); process.exit(0);
+		}
 	});
 }
-
-write();
- 
-
-/*
-1-5 numeric 111.110 permutari in 9.5 secunde + write / 0.90 secunde fara write
-1-6 numeric 1.111.110 permutari in 96.3 secunde + write / 8.99 secunde fara write
-1-7 numeric 11.111.110 permutari in 96.11 secunde fara write
-
-1-3 toate 242235 fara write 2,3 secunde
-1-4 toate 15.018.571 fara  write 152.2 secunde => 98.676/secunda
-
-*/
