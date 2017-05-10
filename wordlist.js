@@ -59,10 +59,10 @@ var createConnectionPool = function() {
 };
 
 var crud = {
-    insertWord: function(listid, word){
+    insertWord: function(word){
 		    return new Promise(function(fulfill, reject) {
         try {
-			connectionPool.query("insert ignore into "+db.database+"."+db.table+" VALUES (null,"+listid+",\""+word+"\")",function(err,result,fields){
+			connectionPool.query("insert ignore into "+db.database+"."+db.table+" VALUES (null,\""+word+"\")",function(err,result,fields){
                 if(err)
                     reject(err);
                 else
@@ -342,7 +342,7 @@ function write(listid) {
 		//console.log(perm.join(''));
 		
 		spinner.setSpinnerTitle('Everything is OK, generating words, this make take a while....');
-		crud.insertWord(id, perm.join('')).then(function(newWordId) {
+		crud.insertWord(perm.join('')).then(function(newWordId) {
 			crud.createAssoc(listid, newWordId).then(function(result) {
 				write(listid);
 			},function(err){
