@@ -62,7 +62,6 @@ CREATE TABLE `all_wordlists` (
  
  CREATE TABLE `gigantor` (
    `id` int(11) NOT NULL AUTO_INCREMENT,
-   `wordlist_id` int(11) NOT NULL,
    `word` varchar(65) NOT NULL,
    PRIMARY KEY (`id`,`wordlist_id`),
    UNIQUE KEY `word` (`word`)
