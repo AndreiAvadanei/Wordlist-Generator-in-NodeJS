@@ -196,13 +196,6 @@ parser.addArgument(
   }
 );
 
-parser.addArgument(
-  '--baz',
-  {
-    help: 'baz bar'
-  }
-);
-
 try {
 	var args = parser.parseArgs();
 	
